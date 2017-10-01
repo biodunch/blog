@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Securing Webtasks Part 1: Shared Secret Authorization"
-description: "Part 1 of the Securing Webtasks series, learn how to quickly lock down your Auth0 Webtasks with a shared secret."
+description: "Learn how to quickly secure your Auth0 Webtasks with a shared secret so only authorized callers can execute them."
 date: 2017-10-02 10:48
 category: Extend, Technical, Webtaskss
 author: 
