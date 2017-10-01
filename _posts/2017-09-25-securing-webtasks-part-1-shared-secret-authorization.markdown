@@ -11,7 +11,7 @@ author:
   avatar: "https://cdn.auth0.com/website/blog/profiles/bobbyjohnson.png"
 design: 
   bg_color: "#3445DC"
-  image: https://cdn.auth0.com/blog/beyond-webhooks/logo.png
+  image: https://cdn.auth0.com/website/blog/extend/securing-webtasks-part-1-shared-secret-authorization/webtasks.png
 tags: 
   - extend
   - Auth0 Webtasks
@@ -22,9 +22,9 @@ related:
   - 2017-08-22-for-the-best-security-think-beyond-webhooks
 ---
 
-Recently, [Randall](https://github.com/rwtombaugh) showed you how quickly you could stand up an HTTPS endpoint on the internet using [Webtask.io](https://webtask.io/). Shockingly, [it takes less than a minute]({% post_url  2017-08-01-auth0-webtasks-the-quickest-of-all-quick-starts %}).
+Recently, [we've]({% post_url  2017-08-01-auth0-webtasks-the-quickest-of-all-quick-starts %}) shown you how quickly you can stand up an HTTPS endpoint on the internet using Auth0 Webtasks with the Webtasks sandbox [webtask.io](https://webtask.io/). Shockingly, it takes less than a minute.
 
-The ease with you can deploy that endpoint and glue together the services you use like Github and Slack make Webtask.io very powerful.
+The ease with witch you can deploy that endpoint and glue together the services you use like Github and Slack make Webtask.io very powerful.
 
 However, if you create a webtask that sends messages to Slack channels when triggered by Github, you wouldn't want anyone but Github to be able to invoke your webtask.
 
@@ -67,11 +67,11 @@ As you can see, the webtask is completely unsecured and available to anyone with
 
 ![Open Tools](https://cdn.auth0.com/website/blog/extend/securing-webtasks-part-1-shared-secret-authorization/open_tools.gif)
 
-## Securing The Webask with a Shared Key
+## Securing The Webtask with a Shared Key
 
-Next, let's add a bit of logic that checks the query string for a secret. If the secret is correct, we will allow execution of the webtask. If not we will throw an error.
+Next, let's add a bit of logic to ensure only authorized callers are able to execute the webtask by checking the query string for a secret. If the secret is correct, we will allow execution of the webtask. If not we will throw an error.
 
-Modify the webtask code using this javascript and click the **Save** button.
+Modify the webtask code using this JavaScript and click the **Save** button.
 
 ```javascript
 module.exports = function(context, cb) {
@@ -105,15 +105,15 @@ The runner now displays an HTTP status of 400 and a "Not Authorized" error objec
 
 The webtask is working as expected, but it would be nice if it would return an HTTP 403 status and not include a body when the request is not authorized. This allows client libraries to handle the authorization error gracefully.
 
-Currently, the webtask uses a [programming model](https://webtask.io/docs/model) in which the code is invoked with a **context** object and a **callback** function. Simply by returning our own object via the callback, we were able to send back an HTTP 200 response with the object serialized as json. This programming model is simple and intuitive to use.
+Currently, the webtask uses a [programming model](https://webtask.io/docs/model) in which the code is invoked with a **context** object and a **callback** function. Simply by returning your own object via the callback, you were able to send back an HTTP 200 response with the object serialized as json. This programming model is simple and intuitive to use.
 
-To send an HTTP 403 response we need access to more of the functionality of HTTP. Webtasks offer a more complex programming model that gives you direct access to the request and response objects used by Node.js.
+To send an HTTP 403 response you need access to more of the functionality of HTTP. Webtasks offer an alternative raw HTTP programming model that gives you direct access to the request and response objects used by Node.js.
 
 Modify the webtask code using this javascript and click the **Save** button.
 
 ```javascript
 module.exports = function(context, request, response) {
-  if(context.data.secret !== 'open-sesame') {
+  if(context.query.secret !== 'open-sesame') {
     response.writeHead(403);
     response.end();
   } else {
@@ -123,7 +123,7 @@ module.exports = function(context, request, response) {
 };
 ```
 
-**Note:** We have a lot more flexibility now, but it is our codes responsibility to correctly write the status code, headers, and content directly to the response stream. The code even has to stringify the secured response correctly!
+**Note:** You have a lot more flexibility now, but it is your code's responsibility to correctly write the status code, headers, and content directly to the response stream. The code even has to stringify the secured response correctly!
 
 Use the runner panel to verify the changes work as expected. You should now see an HTTP 403 if the shared key is incorrect.
 
@@ -131,21 +131,23 @@ Use the runner panel to verify the changes work as expected. You should now see 
 
 Only callers that have access to the secret can invoke the webtask. Since all webtasks are hosted behind an HTTPS endpoint, the SSL/TSL connection ensures that the query-string is encrypted and so sending our secret over the wire is reasonably secure.
 
+Generally speaking, it is a better practice to pass secrets in headers instead of using the query string. This makes it less likely that your secrets will be logged along the way. In part 2 of this series, I'll show you an example of accomplishing this.
+
 ## Securely Storing The Shared Key
 
-Currently, the shared key is hardcoded in our webtask code. That means we have to make sure to keep our code just as secure as the webtask itself. Keeping secrets in code is an awful idea, and it soon becomes untenable with even the simplest of projects.
+Currently, the shared key is hardcoded in your webtask code. That means you have to make sure to keep your code just as secure as the webtask itself. Keeping secrets in code is an awful idea, and it soon becomes untenable with even the simplest of projects.
 
 It's quite common to write code that contains secrets, whether these are credentials for connecting to a database, or API keys for integrating with a third-party service.
 
-Secrets can be securely stored in the editor at any time. They are kept in an encrypted state separate from the code. Only during execution are the secrets decrypted and provided to the code via the **context** object.
+Secrets can be easily defined in the editor at any time. They are kept in an encrypted state separate from the code in the webtask infrastructure. The secrets decrypted and provided to the code via the **context** object only during execution.
 
-Let's update the code to retrieve the shared secret from the **context** object. We need to identify the secret via a key name, so we'll use the key `auth-secret` but any key name would suffice.
+Update the code to retrieve the shared secret from the **context** object. You need to identify the secret via a key name, so use the key `auth-secret` but any key name would suffice.
 
 Modify the webtask code using this javascript and click the **Save** button.
 
 ```javascript
 module.exports = function(context, request, response) {
-  if(context.data.secret !== context.secrets['auth-secret']) {
+  if(context.query.secret !== context.secrets['auth-secret']) {
     response.writeHead(403);
     response.end();
   } else {
@@ -167,12 +169,14 @@ Now store the shared secret key using the secrets panel.
 
 ![Save Secret](https://cdn.auth0.com/website/blog/extend/securing-webtasks-part-1-shared-secret-authorization/save-secret.gif)
 
-If you rerun the test case using the runner, you'll see the same behavior as before. However, now you aren't hard-coding the secret in your webtask code, so you don't have to worry about keeping out webtask code itself secret from other developers.
+If you re-run the test case using the runner, you'll see the same behavior as before. However, now you aren't hard-coding the secret in your webtask code, so you don't have to worry about keeping out webtask code itself secret from other developers.
+
+You have now successfully secured your Webtask with a shared secret. Wasn't that easy?
 
 ## Summary
 
-So let's consider where we are now. We've made some great strides in our attempt to secure our webtask. We're using a shared secret that only authorized callers should know. And that secret isn't hard-coded into our webtask code, so we don't have to worry about other developers having access to our code.
+So, consider where you are now. You've made some great strides in your attempt to secure your webtask. You're using a shared secret that only authorized callers should know. And that secret isn't hard-coded into your webtask code, so you don't have to worry about other developers having access to your code.
 
-But look at the webtask code we currently have. The majority of the logic is dealing with the more complex programming model needed to properly handle authorization. The inital unsecured webtask was three lines of code. Sure, the short and sweet code wasn't secure, but still nobody would deny that it would be nice to use the simpler programming model style webtask and yet still have the same authorization mechanism.
+But look at the webtask code your currently have. The majority of the logic is dealing with the more sophisticated programming model needed to properly handle authorization. The inital unsecured webtask was three lines of code. Sure, the short and sweet code wasn't secure, but still nobody would deny that it would be nice to use the simpler programming model style webtask and yet still have the same authorization mechanism.
 
-Well, it turns out we can write short and sweet webtasks and still have robust authorization. And in the next post we'll see how it's done by using the wt-compilers feature of webtasks. We will also migrate from using query string based tokens to authorization headers.
+Well, it turns out we can write short and sweet webtasks and still have robust authorization. And in the next post I'll show you how it's done by using [Webtasks Middleware](https://auth0.com/extend/docs/developer-guide#middleware). We will also migrate from using query string based tokens to authorization headers.
